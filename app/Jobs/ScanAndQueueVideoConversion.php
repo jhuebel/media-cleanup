@@ -19,9 +19,16 @@ class ScanAndQueueVideoConversion implements ShouldQueue
 {
     use Dispatchable;
 
+    public function __construct(public bool $dryRun = false) {}
+
     public function handle(MediaScanner $scanner): void
     {
-        if (ConversionRun::whereIn('status', [ConversionRunStatus::Scanning, ConversionRunStatus::Running])->exists()) {
+        // Dry runs never touch the filesystem or ffmpeg, so they're safe to
+        // run alongside (or instead of) a real run in progress - only real
+        // runs need to avoid overlapping with each other.
+        if (! $this->dryRun && ConversionRun::where('is_dry_run', false)
+            ->whereIn('status', [ConversionRunStatus::Scanning, ConversionRunStatus::Running])
+            ->exists()) {
             return;
         }
 
@@ -29,6 +36,7 @@ class ScanAndQueueVideoConversion implements ShouldQueue
 
         $run = ConversionRun::create([
             'status' => ConversionRunStatus::Scanning,
+            'is_dry_run' => $this->dryRun,
             'started_at' => now(),
         ]);
 
@@ -49,12 +57,22 @@ class ScanAndQueueVideoConversion implements ShouldQueue
 
         $run->appendLog("Found {$fileCount} of ".count($allFiles)." eligible files to convert.");
 
+        if ($this->dryRun) {
+            $run->appendLog('DRY RUN: no files will be modified, converted, or deleted.');
+        }
+
         if ($fileCount === 0) {
             $run->update([
                 'status' => ConversionRunStatus::Completed,
                 'finished_at' => now(),
             ]);
             $run->appendLog('Nothing to process.');
+
+            return;
+        }
+
+        if ($this->dryRun) {
+            $this->runDryRun($run, $settings, $filesToProcess);
 
             return;
         }
@@ -94,5 +112,52 @@ class ScanAndQueueVideoConversion implements ShouldQueue
             ->dispatch();
 
         $run->update(['batch_id' => $batch->id]);
+    }
+
+    /**
+     * @param  \Symfony\Component\Finder\SplFileInfo[]  $files
+     */
+    private function runDryRun(ConversionRun $run, Setting $settings, array $files): void
+    {
+        foreach ($files as $file) {
+            $source = $file->getPathname();
+            $extension = strtolower($file->getExtension());
+            $target = dirname($source).'/'.pathinfo($source, PATHINFO_FILENAME).'.mp4';
+            $description = $settings->conversionDescription($extension);
+
+            $run->appendLog("{$source}:");
+
+            if (file_exists($target)) {
+                ConversionFile::create([
+                    'conversion_run_id' => $run->id,
+                    'source_path' => $source,
+                    'extension' => $extension,
+                    'status' => ConversionFileStatus::Skipped,
+                    'error_message' => "Target already exists, would fail during a real run: {$target}",
+                    'source_mtime' => $file->getMTime(),
+                    'finished_at' => now(),
+                ]);
+                $run->appendLog(" - WOULD FAIL: target already exists ({$target})");
+
+                continue;
+            }
+
+            ConversionFile::create([
+                'conversion_run_id' => $run->id,
+                'source_path' => $source,
+                'extension' => $extension,
+                'status' => ConversionFileStatus::WouldConvert,
+                'source_mtime' => $file->getMTime(),
+                'finished_at' => now(),
+            ]);
+            $run->appendLog(" - Would {$description}");
+            $run->appendLog(' - Would remove original '.strtoupper($extension).' after a successful conversion');
+        }
+
+        $run->update([
+            'status' => ConversionRunStatus::Completed,
+            'files_total' => count($files),
+            'finished_at' => now(),
+        ]);
     }
 }

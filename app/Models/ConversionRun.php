@@ -13,6 +13,7 @@ class ConversionRun extends Model
 {
     protected $fillable = [
         'status',
+        'is_dry_run',
         'batch_id',
         'files_total',
         'started_at',
@@ -24,6 +25,7 @@ class ConversionRun extends Model
     {
         return [
             'status' => ConversionRunStatus::class,
+            'is_dry_run' => 'boolean',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];

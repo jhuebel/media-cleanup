@@ -45,4 +45,34 @@ class Setting extends Model
             'delete_extensions' => ['mp4', 'mkv', 'avi', 'srt', 'sub'],
         ]);
     }
+
+    /**
+     * Whether a source file with the given extension would be remuxed
+     * (stream copy) rather than re-encoded.
+     */
+    public function usesRemux(string $extension): bool
+    {
+        return $extension === 'mkv' && $this->mkv_remux;
+    }
+
+    /**
+     * Human-readable description of what conversion would do for the
+     * given extension, used both in dry-run reporting and run logs.
+     */
+    public function conversionDescription(string $extension): string
+    {
+        if ($this->usesRemux($extension)) {
+            return 'remux to MP4 (stream copy, no re-encode)';
+        }
+
+        return sprintf(
+            're-encode to MP4 (%s, crf %d, preset %s, tune %s, audio %s %s)',
+            $this->video_codec,
+            $this->crf,
+            $this->preset,
+            $this->tune,
+            $this->audio_codec,
+            $this->audio_bitrate,
+        );
+    }
 }

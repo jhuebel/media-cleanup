@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ConversionFileStatus;
 use App\Enums\ConversionRunStatus;
 use App\Jobs\ScanAndQueueVideoConversion;
 use App\Models\ConversionFile;
 use App\Models\ConversionRun;
 use App\Models\Setting;
+use App\Services\MediaScanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
@@ -87,5 +89,80 @@ class ScanAndQueueVideoConversionTest extends TestCase
 
         $this->assertSame(1, ConversionRun::count());
         $this->assertSame(0, ConversionFile::count());
+    }
+
+    public function test_dry_run_reports_files_without_touching_the_filesystem_or_dispatching_jobs(): void
+    {
+        Bus::fake();
+
+        $mkv = "{$this->root}/Show A/Season 1/episode1.mkv";
+        $avi = "{$this->root}/Show A/Season 1/episode2.avi";
+        touch($mkv);
+        touch($avi);
+
+        (new ScanAndQueueVideoConversion(dryRun: true))->handle(app(MediaScanner::class));
+
+        $this->assertFileExists($mkv);
+        $this->assertFileExists($avi);
+
+        $run = ConversionRun::sole();
+        $this->assertTrue($run->is_dry_run);
+        $this->assertSame(ConversionRunStatus::Completed, $run->status);
+        $this->assertSame(2, $run->files_total);
+        $this->assertNull($run->batch_id);
+
+        $this->assertSame(2, ConversionFile::where('status', ConversionFileStatus::WouldConvert)->count());
+        $this->assertStringContainsString('remux to MP4', $run->log);
+        $this->assertStringContainsString('re-encode to MP4', $run->log);
+
+        Bus::assertNothingBatched();
+    }
+
+    public function test_dry_run_flags_a_target_collision_without_deleting_anything(): void
+    {
+        $mkv = "{$this->root}/Show A/Season 1/episode1.mkv";
+        $existingTarget = "{$this->root}/Show A/Season 1/episode1.mp4";
+        touch($mkv);
+        touch($existingTarget);
+
+        (new ScanAndQueueVideoConversion(dryRun: true))->handle(app(MediaScanner::class));
+
+        $this->assertFileExists($mkv);
+        $this->assertFileExists($existingTarget);
+
+        $file = ConversionFile::sole();
+        $this->assertSame(ConversionFileStatus::Skipped, $file->status);
+        $this->assertStringContainsString('already exists', $file->error_message);
+    }
+
+    public function test_dry_run_is_not_blocked_by_a_real_run_in_progress(): void
+    {
+        ConversionRun::create(['status' => ConversionRunStatus::Running, 'is_dry_run' => false, 'started_at' => now()]);
+
+        touch("{$this->root}/Show A/Season 1/episode1.mkv");
+
+        (new ScanAndQueueVideoConversion(dryRun: true))->handle(app(MediaScanner::class));
+
+        $this->assertSame(2, ConversionRun::count());
+        $this->assertSame(ConversionFileStatus::WouldConvert, ConversionFile::sole()->status);
+    }
+
+    public function test_a_completed_dry_run_does_not_block_a_subsequent_real_run(): void
+    {
+        Bus::fake();
+
+        ConversionRun::create([
+            'status' => ConversionRunStatus::Completed,
+            'is_dry_run' => true,
+            'started_at' => now(),
+            'finished_at' => now(),
+        ]);
+
+        touch("{$this->root}/Show A/Season 1/episode1.mkv");
+
+        (new ScanAndQueueVideoConversion)->handle(app(MediaScanner::class));
+
+        $realRun = ConversionRun::where('is_dry_run', false)->sole();
+        $this->assertSame(ConversionRunStatus::Running, $realRun->status);
     }
 }

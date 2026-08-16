@@ -103,7 +103,7 @@ class ConvertVideoFile implements ShouldQueue
      */
     private function buildFfmpegCommand(string $source, string $tmpTarget, string $extension, Setting $settings): array
     {
-        if ($extension === 'mkv' && $settings->mkv_remux) {
+        if ($settings->usesRemux($extension)) {
             return ['ffmpeg', '-y', '-i', $source, '-codec', 'copy', $tmpTarget, '-loglevel', 'error', '-nostats'];
         }
 

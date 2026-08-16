@@ -5,6 +5,7 @@ use App\Jobs\ScanAndQueueVideoConversion;
 use App\Models\ConversionRun;
 use App\Models\DeletionRun;
 use App\Models\Setting;
+use App\Services\MediaScanner;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -39,6 +40,15 @@ new #[Title('Dashboard')] class extends Component
         unset($this->conversionRuns);
     }
 
+    public function dryRunNow(MediaScanner $scanner): void
+    {
+        // Dry runs are cheap (no ffmpeg work), so run inline for instant feedback.
+        (new ScanAndQueueVideoConversion(dryRun: true))->handle($scanner);
+
+        $this->flash = 'Dry run complete — see the report below.';
+        unset($this->conversionRuns);
+    }
+
     public function cleanupNow(): void
     {
         DeleteExpiredEpisodes::dispatch();
@@ -58,15 +68,25 @@ new #[Title('Dashboard')] class extends Component
 
     <div class="grid gap-6 md:grid-cols-2">
         <section class="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <div class="mb-1 flex items-center justify-between">
+            <div class="mb-1 flex items-center justify-between gap-2">
                 <h2 class="text-base font-semibold text-slate-100">Video Conversion</h2>
-                <button
-                    wire:click="convertNow"
-                    wire:loading.attr="disabled"
-                    class="rounded bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
-                >
-                    Scan &amp; Convert Now
-                </button>
+                <div class="flex gap-2">
+                    <button
+                        wire:click="dryRunNow"
+                        wire:loading.attr="disabled"
+                        title="Report what would be converted without touching any files"
+                        class="rounded border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 disabled:opacity-50"
+                    >
+                        Dry Run
+                    </button>
+                    <button
+                        wire:click="convertNow"
+                        wire:loading.attr="disabled"
+                        class="rounded bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+                    >
+                        Scan &amp; Convert Now
+                    </button>
+                </div>
             </div>
             <p class="mb-4 text-xs text-slate-500">
                 /{{ trim($this->settings->scan_path, '/') }} &middot;
@@ -80,7 +100,12 @@ new #[Title('Dashboard')] class extends Component
                         <a href="{{ route('conversions.show', $run) }}" wire:navigate
                            class="block rounded border border-slate-800 p-3 hover:border-slate-600">
                             <div class="flex items-center justify-between text-sm">
-                                <span class="font-medium text-slate-200">Run #{{ $run->id }}</span>
+                                <span class="flex items-center gap-2 font-medium text-slate-200">
+                                    Run #{{ $run->id }}
+                                    @if ($run->is_dry_run)
+                                        <span class="rounded bg-amber-950 px-1.5 py-0.5 text-xs font-normal uppercase text-amber-400">Dry Run</span>
+                                    @endif
+                                </span>
                                 <span class="text-xs uppercase tracking-wide text-slate-500">
                                     {{ str_replace('_', ' ', $run->status->value) }}
                                 </span>

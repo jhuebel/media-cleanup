@@ -35,11 +35,19 @@ new #[Title('Conversion Run')] class extends Component
 
     <div class="rounded-lg border border-slate-800 bg-slate-900 p-5">
         <div class="flex items-center justify-between">
-            <h1 class="text-lg font-semibold text-slate-100">Conversion Run #{{ $this->run->id }}</h1>
+            <h1 class="flex items-center gap-2 text-lg font-semibold text-slate-100">
+                Conversion Run #{{ $this->run->id }}
+                @if ($this->run->is_dry_run)
+                    <span class="rounded bg-amber-950 px-1.5 py-0.5 text-xs font-normal uppercase text-amber-400">Dry Run</span>
+                @endif
+            </h1>
             <span class="text-xs uppercase tracking-wide text-slate-500">
                 {{ str_replace('_', ' ', $this->run->status->value) }}
             </span>
         </div>
+        @if ($this->run->is_dry_run)
+            <p class="mt-2 text-xs text-amber-400">No files were modified, converted, or deleted during this run.</p>
+        @endif
         <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
             <div class="h-full bg-sky-500" style="width: {{ $this->run->progressPercent() }}%"></div>
         </div>
@@ -71,9 +79,11 @@ new #[Title('Conversion Run')] class extends Component
                                 <span @class([
                                     'rounded px-1.5 py-0.5 text-xs uppercase',
                                     'bg-emerald-950 text-emerald-400' => $file->status->value === 'done',
+                                    'bg-sky-950 text-sky-400' => $file->status->value === 'would_convert',
                                     'bg-rose-950 text-rose-400' => $file->status->value === 'failed',
-                                    'bg-slate-800 text-slate-400' => ! in_array($file->status->value, ['done', 'failed']),
-                                ])>{{ $file->status->value }}</span>
+                                    'bg-amber-950 text-amber-400' => $file->status->value === 'skipped',
+                                    'bg-slate-800 text-slate-400' => ! in_array($file->status->value, ['done', 'failed', 'would_convert', 'skipped']),
+                                ])>{{ str_replace('_', ' ', $file->status->value) }}</span>
                             </td>
                             <td class="px-3 py-2 text-xs text-rose-400">{{ $file->error_message }}</td>
                         </tr>
