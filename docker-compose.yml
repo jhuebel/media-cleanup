@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      TZ: "${TZ:-UTC}"
+      APP_NAME: "Media Cleanup"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: "${APP_URL:-http://localhost:8080}"
+      APP_KEY: "${APP_KEY:-}"
+      LOG_CHANNEL: stack
+      LOG_LEVEL: info
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/storage/app/database.sqlite
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      DB_QUEUE_RETRY_AFTER: "86400"
+      MEDIA_ROOT: /media
+    volumes:
+      - "${MEDIA_PATH}:/media"
+      - storage-data:/var/www/html/storage
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  storage-data:
