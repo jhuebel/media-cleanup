@@ -13,6 +13,8 @@ new #[Title('Settings')] class extends Component
 
     public int $convert_batch_size = 250;
 
+    public string $convert_schedule = '';
+
     public string $convert_extensions = '';
 
     public bool $mkv_remux = true;
@@ -31,6 +33,8 @@ new #[Title('Settings')] class extends Component
 
     public string $delete_marker_filename = 'deleteafter.txt';
 
+    public string $delete_schedule = '';
+
     public string $delete_extensions = '';
 
     public ?string $saved = null;
@@ -42,6 +46,7 @@ new #[Title('Settings')] class extends Component
         $this->scan_path = $settings->scan_path;
         $this->exclude_patterns = implode(', ', $settings->exclude_patterns ?? []);
         $this->convert_batch_size = $settings->convert_batch_size;
+        $this->convert_schedule = $settings->convert_schedule ?? '';
         $this->convert_extensions = implode(', ', $settings->convert_extensions ?? []);
         $this->mkv_remux = $settings->mkv_remux;
         $this->video_codec = $settings->video_codec;
@@ -51,15 +56,23 @@ new #[Title('Settings')] class extends Component
         $this->audio_codec = $settings->audio_codec;
         $this->audio_bitrate = $settings->audio_bitrate;
         $this->delete_marker_filename = $settings->delete_marker_filename;
+        $this->delete_schedule = $settings->delete_schedule ?? '';
         $this->delete_extensions = implode(', ', $settings->delete_extensions ?? []);
     }
 
     protected function rules(): array
     {
+        $cronRule = function (string $attribute, mixed $value, \Closure $fail) {
+            if ($value !== '' && ! \Cron\CronExpression::isValidExpression($value)) {
+                $fail('Not a valid cron expression (5 fields: minute hour day month weekday).');
+            }
+        };
+
         return [
             'scan_path' => ['nullable', 'string'],
             'exclude_patterns' => ['nullable', 'string'],
             'convert_batch_size' => ['required', 'integer', 'min:1', 'max:5000'],
+            'convert_schedule' => ['nullable', 'string', $cronRule],
             'convert_extensions' => ['required', 'string'],
             'mkv_remux' => ['boolean'],
             'video_codec' => ['required', 'string'],
@@ -69,6 +82,7 @@ new #[Title('Settings')] class extends Component
             'audio_codec' => ['required', 'string'],
             'audio_bitrate' => ['required', 'string'],
             'delete_marker_filename' => ['required', 'string'],
+            'delete_schedule' => ['nullable', 'string', $cronRule],
             'delete_extensions' => ['required', 'string'],
         ];
     }
@@ -92,6 +106,7 @@ new #[Title('Settings')] class extends Component
             'scan_path' => $scanPath,
             'exclude_patterns' => $this->splitList($this->exclude_patterns),
             'convert_batch_size' => $this->convert_batch_size,
+            'convert_schedule' => $this->convert_schedule ?: null,
             'convert_extensions' => $this->splitList($this->convert_extensions, strtolower: true),
             'mkv_remux' => $this->mkv_remux,
             'video_codec' => $this->video_codec,
@@ -101,6 +116,7 @@ new #[Title('Settings')] class extends Component
             'audio_codec' => $this->audio_codec,
             'audio_bitrate' => $this->audio_bitrate,
             'delete_marker_filename' => $this->delete_marker_filename,
+            'delete_schedule' => $this->delete_schedule ?: null,
             'delete_extensions' => $this->splitList($this->delete_extensions, strtolower: true),
         ]);
 
@@ -160,6 +176,13 @@ new #[Title('Settings')] class extends Component
                     <input type="number" wire:model="convert_batch_size" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                     @error('convert_batch_size') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
+                <div>
+                    <label class="mb-1 block text-xs text-slate-400">Schedule (cron expression, blank to disable)</label>
+                    <input type="text" wire:model="convert_schedule" placeholder="0 2 * * *"
+                           class="w-full rounded border-slate-700 bg-slate-950 font-mono text-sm text-slate-200">
+                    <p class="mt-1 text-xs text-slate-500">minute hour day month weekday &mdash; e.g. <code>0 2 * * *</code> = daily at 2:00am</p>
+                    @error('convert_schedule') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
+                </div>
                 <div class="sm:col-span-2 flex items-center gap-2">
                     <input type="checkbox" wire:model="mkv_remux" id="mkv_remux" class="rounded border-slate-700 bg-slate-950">
                     <label for="mkv_remux" class="text-sm text-slate-300">Remux .mkv (stream copy) instead of re-encoding</label>
@@ -208,6 +231,13 @@ new #[Title('Settings')] class extends Component
                     <label class="mb-1 block text-xs text-slate-400">Deletable extensions (comma-separated)</label>
                     <input type="text" wire:model="delete_extensions" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                     @error('delete_extensions') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs text-slate-400">Schedule (cron expression, blank to disable)</label>
+                    <input type="text" wire:model="delete_schedule" placeholder="0 3 * * *"
+                           class="w-full rounded border-slate-700 bg-slate-950 font-mono text-sm text-slate-200">
+                    <p class="mt-1 text-xs text-slate-500">minute hour day month weekday &mdash; e.g. <code>0 3 * * *</code> = daily at 3:00am</p>
+                    @error('delete_schedule') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
             </div>
         </section>

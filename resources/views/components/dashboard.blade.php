@@ -88,10 +88,17 @@ new #[Title('Dashboard')] class extends Component
                     </button>
                 </div>
             </div>
-            <p class="mb-4 text-xs text-slate-500">
+            <p class="mb-1 text-xs text-slate-500">
                 /{{ trim($this->settings->scan_path, '/') }} &middot;
                 {{ implode(', ', $this->settings->convert_extensions) }} &rarr; mp4 &middot;
                 batch of {{ $this->settings->convert_batch_size }}
+            </p>
+            <p class="mb-4 text-xs text-slate-500">
+                @if ($nextConvertRun = Setting::nextRunFor($this->settings->convert_schedule))
+                    Next scheduled run: {{ $nextConvertRun->format('M j, g:i A') }} ({{ $nextConvertRun->diffForHumans() }})
+                @else
+                    Scheduled run disabled &mdash; <a href="{{ route('settings') }}" wire:navigate class="underline hover:text-slate-300">configure in Settings</a>
+                @endif
             </p>
 
             <ul class="space-y-2">
@@ -135,9 +142,16 @@ new #[Title('Dashboard')] class extends Component
                     Run Now
                 </button>
             </div>
-            <p class="mb-4 text-xs text-slate-500">
+            <p class="mb-1 text-xs text-slate-500">
                 Looking for <code class="text-slate-400">{{ $this->settings->delete_marker_filename }}</code> markers &middot;
                 {{ implode(', ', $this->settings->delete_extensions) }}
+            </p>
+            <p class="mb-4 text-xs text-slate-500">
+                @if ($nextDeleteRun = Setting::nextRunFor($this->settings->delete_schedule))
+                    Next scheduled run: {{ $nextDeleteRun->format('M j, g:i A') }} ({{ $nextDeleteRun->diffForHumans() }})
+                @else
+                    Scheduled run disabled &mdash; <a href="{{ route('settings') }}" wire:navigate class="underline hover:text-slate-300">configure in Settings</a>
+                @endif
             </p>
 
             <ul class="space-y-2">

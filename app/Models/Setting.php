@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Cron\CronExpression;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class Setting extends Model
 {
@@ -10,6 +12,7 @@ class Setting extends Model
         'scan_path',
         'exclude_patterns',
         'convert_batch_size',
+        'convert_schedule',
         'convert_extensions',
         'mkv_remux',
         'video_codec',
@@ -19,6 +22,7 @@ class Setting extends Model
         'audio_codec',
         'audio_bitrate',
         'delete_marker_filename',
+        'delete_schedule',
         'delete_extensions',
     ];
 
@@ -74,5 +78,18 @@ class Setting extends Model
             $this->audio_codec,
             $this->audio_bitrate,
         );
+    }
+
+    /**
+     * Next scheduled run time for a stored cron expression, or null if the
+     * expression is blank/invalid.
+     */
+    public static function nextRunFor(?string $cronExpression): ?Carbon
+    {
+        if (! $cronExpression || ! CronExpression::isValidExpression($cronExpression)) {
+            return null;
+        }
+
+        return Carbon::instance(CronExpression::factory($cronExpression)->getNextRunDate());
     }
 }

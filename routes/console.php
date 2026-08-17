@@ -1,12 +1,14 @@
 <?php
 
+use App\Console\ScheduleConfigurator;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('videos:convert')->dailyAt('02:00')->withoutOverlapping();
-Schedule::command('episodes:delete-expired')->dailyAt('03:00')->withoutOverlapping();
+// Schedule times are configurable from the Settings page (stored as cron
+// expressions) - see App\Console\ScheduleConfigurator.
+ScheduleConfigurator::configure(app(Schedule::class));
