@@ -28,5 +28,9 @@ class ScheduleConfigurator
         if ($settings->delete_schedule) {
             $schedule->command('episodes:delete-expired')->cron($settings->delete_schedule)->withoutOverlapping();
         }
+
+        // Log retention (how many days of history to keep) is configurable,
+        // but the sweep itself runs on a fixed schedule.
+        $schedule->command('logs:prune')->dailyAt('04:30')->withoutOverlapping();
     }
 }

@@ -55,6 +55,8 @@ class ConvertVideoFile implements ShouldQueue
                 throw new RuntimeException("Target already exists, refusing to overwrite: {$target}");
             }
 
+            $file->update(['source_size_bytes' => filesize($source)]);
+
             $process = new Process($this->buildFfmpegCommand($source, $tmp, $file->extension, $settings));
             $process->setTimeout(null);
             $process->run();
@@ -77,10 +79,16 @@ class ConvertVideoFile implements ShouldQueue
                 throw new RuntimeException("Failed to move converted file into place: {$target}");
             }
 
+            $convertedSize = filesize($target);
+
             $run->appendLog(' - Removing original '.strtoupper($file->extension));
             unlink($source);
 
-            $file->update(['status' => ConversionFileStatus::Done, 'finished_at' => now()]);
+            $file->update([
+                'status' => ConversionFileStatus::Done,
+                'converted_size_bytes' => $convertedSize,
+                'finished_at' => now(),
+            ]);
         } catch (Throwable $e) {
             if (file_exists($tmp)) {
                 @unlink($tmp);

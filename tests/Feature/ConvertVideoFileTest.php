@@ -84,7 +84,11 @@ class ConvertVideoFileTest extends TestCase
         $this->assertFileExists($target);
         $this->assertFileDoesNotExist($source);
         $this->assertSame($mtime, filemtime($target));
-        $this->assertSame(ConversionFileStatus::Done, $file->fresh()->status);
+
+        $fresh = $file->fresh();
+        $this->assertSame(ConversionFileStatus::Done, $fresh->status);
+        $this->assertGreaterThan(0, $fresh->source_size_bytes);
+        $this->assertSame(filesize($target), $fresh->converted_size_bytes);
     }
 
     public function test_marks_the_file_failed_and_cleans_up_temp_output_on_ffmpeg_error(): void

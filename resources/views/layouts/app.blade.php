@@ -16,6 +16,7 @@
             </a>
             <nav class="flex gap-4 text-sm">
                 <a href="{{ route('dashboard') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Dashboard</a>
+                <a href="{{ route('jobs') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Jobs</a>
                 <a href="{{ route('settings') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Settings</a>
             </nav>
         </header>

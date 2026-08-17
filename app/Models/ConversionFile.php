@@ -15,6 +15,8 @@ class ConversionFile extends Model
         'status',
         'error_message',
         'source_mtime',
+        'source_size_bytes',
+        'converted_size_bytes',
         'started_at',
         'finished_at',
     ];

@@ -37,6 +37,8 @@ new #[Title('Settings')] class extends Component
 
     public string $delete_extensions = '';
 
+    public string $log_retention_days = '';
+
     public ?string $saved = null;
 
     public function mount(): void
@@ -58,6 +60,7 @@ new #[Title('Settings')] class extends Component
         $this->delete_marker_filename = $settings->delete_marker_filename;
         $this->delete_schedule = $settings->delete_schedule ?? '';
         $this->delete_extensions = implode(', ', $settings->delete_extensions ?? []);
+        $this->log_retention_days = (string) ($settings->log_retention_days ?? '');
     }
 
     protected function rules(): array
@@ -84,6 +87,7 @@ new #[Title('Settings')] class extends Component
             'delete_marker_filename' => ['required', 'string'],
             'delete_schedule' => ['nullable', 'string', $cronRule],
             'delete_extensions' => ['required', 'string'],
+            'log_retention_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
         ];
     }
 
@@ -118,6 +122,7 @@ new #[Title('Settings')] class extends Component
             'delete_marker_filename' => $this->delete_marker_filename,
             'delete_schedule' => $this->delete_schedule ?: null,
             'delete_extensions' => $this->splitList($this->delete_extensions, strtolower: true),
+            'log_retention_days' => $this->log_retention_days !== '' ? (int) $this->log_retention_days : null,
         ]);
 
         $this->saved = 'Settings saved.';
@@ -163,7 +168,28 @@ new #[Title('Settings')] class extends Component
             </div>
         </section>
 
-        <section class="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <section class="rounded-lg border border-slate-800 bg-slate-900 p-5"
+            x-data="{
+                mkvRemux: @js($mkv_remux),
+                videoCodec: @js($video_codec),
+                crf: @js($crf),
+                preset: @js($preset),
+                tune: @js($tune),
+                audioCodec: @js($audio_codec),
+                audioBitrate: @js($audio_bitrate),
+                get reencodeArgs() {
+                    return `-c:v ${this.videoCodec} -crf ${this.crf} -preset ${this.preset} -tune ${this.tune} -c:a ${this.audioCodec} -b:a ${this.audioBitrate}`
+                },
+                get mkvCommand() {
+                    return this.mkvRemux
+                        ? 'ffmpeg -y -i input.mkv -codec copy output.mp4'
+                        : `ffmpeg -y -i input.mkv ${this.reencodeArgs} output.mp4`
+                },
+                get aviCommand() {
+                    return `ffmpeg -y -i input.avi ${this.reencodeArgs} output.mp4`
+                },
+            }"
+        >
             <h2 class="mb-4 text-sm font-semibold text-slate-100">Conversion</h2>
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>
@@ -184,38 +210,47 @@ new #[Title('Settings')] class extends Component
                     @error('convert_schedule') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div class="sm:col-span-2 flex items-center gap-2">
-                    <input type="checkbox" wire:model="mkv_remux" id="mkv_remux" class="rounded border-slate-700 bg-slate-950">
+                    <input type="checkbox" wire:model="mkv_remux" x-model="mkvRemux" id="mkv_remux" class="rounded border-slate-700 bg-slate-950">
                     <label for="mkv_remux" class="text-sm text-slate-300">Remux .mkv (stream copy) instead of re-encoding</label>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-400">Video codec</label>
-                    <input type="text" wire:model="video_codec" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                    <input type="text" wire:model="video_codec" x-model="videoCodec" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                     @error('video_codec') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-400">CRF (0-51, lower = higher quality)</label>
-                    <input type="number" wire:model="crf" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                    <input type="number" wire:model="crf" x-model="crf" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                     @error('crf') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-400">Preset</label>
-                    <input type="text" wire:model="preset" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                    <input type="text" wire:model="preset" x-model="preset" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                     @error('preset') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-400">Tune</label>
-                    <input type="text" wire:model="tune" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                    <input type="text" wire:model="tune" x-model="tune" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-400">Audio codec</label>
-                    <input type="text" wire:model="audio_codec" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                    <input type="text" wire:model="audio_codec" x-model="audioCodec" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                     @error('audio_codec') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-400">Audio bitrate</label>
-                    <input type="text" wire:model="audio_bitrate" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                    <input type="text" wire:model="audio_bitrate" x-model="audioBitrate" class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
                     @error('audio_bitrate') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+                <p class="text-xs text-slate-400">Example ffmpeg command lines for these settings:</p>
+                <pre class="overflow-x-auto rounded bg-black/40 p-3 text-xs text-slate-400"><span class="text-slate-600"># .mkv &rarr; .mp4</span>
+<span x-text="mkvCommand"></span>
+
+<span class="text-slate-600"># .avi &rarr; .mp4</span>
+<span x-text="aviCommand"></span></pre>
             </div>
         </section>
 
@@ -238,6 +273,19 @@ new #[Title('Settings')] class extends Component
                            class="w-full rounded border-slate-700 bg-slate-950 font-mono text-sm text-slate-200">
                     <p class="mt-1 text-xs text-slate-500">minute hour day month weekday &mdash; e.g. <code>0 3 * * *</code> = daily at 3:00am</p>
                     @error('delete_schedule') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-lg border border-slate-800 bg-slate-900 p-5">
+            <h2 class="mb-4 text-sm font-semibold text-slate-100">Job History</h2>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="mb-1 block text-xs text-slate-400">Keep run history for (days, blank to keep forever)</label>
+                    <input type="number" wire:model="log_retention_days" placeholder="30"
+                           class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                    <p class="mt-1 text-xs text-slate-500">Conversion and cleanup runs (and their logs) older than this are deleted daily.</p>
+                    @error('log_retention_days') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
                 </div>
             </div>
         </section>

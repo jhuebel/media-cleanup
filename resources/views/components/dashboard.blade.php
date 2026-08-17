@@ -1,11 +1,15 @@
 <?php
 
+use App\Enums\ConversionFileStatus;
 use App\Jobs\DeleteExpiredEpisodes;
 use App\Jobs\ScanAndQueueVideoConversion;
+use App\Models\ConversionFile;
 use App\Models\ConversionRun;
+use App\Models\DeletedFile;
 use App\Models\DeletionRun;
 use App\Models\Setting;
 use App\Services\MediaScanner;
+use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -21,15 +25,72 @@ new #[Title('Dashboard')] class extends Component
     }
 
     #[Computed]
-    public function conversionRuns()
+    public function conversionStats(): array
     {
-        return ConversionRun::latest()->take(8)->get();
+        $files = ConversionFile::whereHas('run', fn ($q) => $q->where('is_dry_run', false));
+
+        return [
+            'runs' => ConversionRun::where('is_dry_run', false)->count(),
+            'done' => (clone $files)->where('status', ConversionFileStatus::Done)->count(),
+            'failed' => (clone $files)->where('status', ConversionFileStatus::Failed)->count(),
+            'spaceSaved' => (clone $files)
+                ->where('status', ConversionFileStatus::Done)
+                ->whereNotNull('source_size_bytes')
+                ->whereNotNull('converted_size_bytes')
+                ->selectRaw('COALESCE(SUM(source_size_bytes - converted_size_bytes), 0) as total')
+                ->value('total'),
+            'chart' => $this->dailyCounts(
+                ConversionFile::whereHas('run', fn ($q) => $q->where('is_dry_run', false))
+                    ->where('status', ConversionFileStatus::Done),
+                'finished_at',
+            ),
+        ];
     }
 
     #[Computed]
-    public function deletionRuns()
+    public function deletionStats(): array
     {
-        return DeletionRun::latest()->take(8)->get();
+        return [
+            'runs' => DeletionRun::count(),
+            'deleted' => DeletedFile::count(),
+            'spaceFreed' => DeletedFile::sum('size_bytes'),
+            'chart' => $this->dailyCounts(DeletedFile::query(), 'deleted_at'),
+        ];
+    }
+
+    /**
+     * Zero-filled daily counts for the last 14 days, keyed by date.
+     */
+    private function dailyCounts($query, string $dateColumn): array
+    {
+        $since = now()->subDays(13)->startOfDay();
+
+        $counts = (clone $query)
+            ->where($dateColumn, '>=', $since)
+            ->selectRaw("date({$dateColumn}) as day, count(*) as total")
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        return collect(range(13, 0))
+            ->map(function ($daysAgo) use ($counts) {
+                $date = now()->subDays($daysAgo)->format('Y-m-d');
+
+                return ['date' => $date, 'count' => (int) ($counts[$date] ?? 0)];
+            })
+            ->all();
+    }
+
+    public function formatBytes(?int $bytes): string
+    {
+        if (! $bytes) {
+            return '0 MB';
+        }
+
+        $gb = $bytes / 1073741824;
+
+        return $gb >= 1
+            ? number_format($gb, 1).' GB'
+            : number_format($bytes / 1048576, 1).' MB';
     }
 
     public function convertNow(): void
@@ -37,7 +98,7 @@ new #[Title('Dashboard')] class extends Component
         ScanAndQueueVideoConversion::dispatch();
 
         $this->flash = 'Conversion scan queued.';
-        unset($this->conversionRuns);
+        unset($this->conversionStats);
     }
 
     public function dryRunNow(MediaScanner $scanner): void
@@ -45,8 +106,7 @@ new #[Title('Dashboard')] class extends Component
         // Dry runs are cheap (no ffmpeg work), so run inline for instant feedback.
         (new ScanAndQueueVideoConversion(dryRun: true))->handle($scanner);
 
-        $this->flash = 'Dry run complete — see the report below.';
-        unset($this->conversionRuns);
+        $this->flash = 'Dry run complete — see the report on the Jobs page.';
     }
 
     public function cleanupNow(): void
@@ -54,7 +114,7 @@ new #[Title('Dashboard')] class extends Component
         DeleteExpiredEpisodes::dispatch();
 
         $this->flash = 'Expired episode cleanup queued.';
-        unset($this->deletionRuns);
+        unset($this->deletionStats);
     }
 };
 ?>
@@ -101,34 +161,43 @@ new #[Title('Dashboard')] class extends Component
                 @endif
             </p>
 
-            <ul class="space-y-2">
-                @forelse ($this->conversionRuns as $run)
-                    <li>
-                        <a href="{{ route('conversions.show', $run) }}" wire:navigate
-                           class="block rounded border border-slate-800 p-3 hover:border-slate-600">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="flex items-center gap-2 font-medium text-slate-200">
-                                    Run #{{ $run->id }}
-                                    @if ($run->is_dry_run)
-                                        <span class="rounded bg-amber-950 px-1.5 py-0.5 text-xs font-normal uppercase text-amber-400">Dry Run</span>
-                                    @endif
-                                </span>
-                                <span class="text-xs uppercase tracking-wide text-slate-500">
-                                    {{ str_replace('_', ' ', $run->status->value) }}
-                                </span>
+            <div class="grid grid-cols-4 gap-2 text-center">
+                <div class="rounded bg-slate-950 p-2">
+                    <div class="text-lg font-semibold text-slate-100">{{ $this->conversionStats['runs'] }}</div>
+                    <div class="text-xs text-slate-500">runs</div>
+                </div>
+                <div class="rounded bg-slate-950 p-2">
+                    <div class="text-lg font-semibold text-emerald-400">{{ $this->conversionStats['done'] }}</div>
+                    <div class="text-xs text-slate-500">converted</div>
+                </div>
+                <div class="rounded bg-slate-950 p-2">
+                    <div class="text-lg font-semibold text-rose-400">{{ $this->conversionStats['failed'] }}</div>
+                    <div class="text-xs text-slate-500">failed</div>
+                </div>
+                <div class="rounded bg-slate-950 p-2">
+                    <div class="text-lg font-semibold text-sky-400">{{ $this->formatBytes($this->conversionStats['spaceSaved']) }}</div>
+                    <div class="text-xs text-slate-500">saved</div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <p class="mb-1 text-xs text-slate-500">Files converted per day (last 14 days)</p>
+                @php $maxConvert = max(1, collect($this->conversionStats['chart'])->max('count')); @endphp
+                <div class="flex h-16 items-end gap-1">
+                    @foreach ($this->conversionStats['chart'] as $day)
+                        <div class="group relative flex-1">
+                            <div class="rounded-t bg-sky-600" style="height: {{ max(2, $day['count'] / $maxConvert * 64) }}px"></div>
+                            <div class="pointer-events-none absolute -top-6 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-200 group-hover:block">
+                                {{ Carbon::parse($day['date'])->format('M j') }}: {{ $day['count'] }}
                             </div>
-                            <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-                                <div class="h-full bg-sky-500" style="width: {{ $run->progressPercent() }}%"></div>
-                            </div>
-                            <div class="mt-1 text-xs text-slate-500">
-                                {{ $run->files_total }} files &middot; {{ $run->started_at?->diffForHumans() }}
-                            </div>
-                        </a>
-                    </li>
-                @empty
-                    <li class="text-sm text-slate-500">No conversion runs yet.</li>
-                @endforelse
-            </ul>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <a href="{{ route('jobs') }}" wire:navigate class="mt-4 block text-center text-xs text-slate-400 underline hover:text-slate-200">
+                View all conversion runs &rarr;
+            </a>
         </section>
 
         <section class="rounded-lg border border-slate-800 bg-slate-900 p-5">
@@ -154,27 +223,39 @@ new #[Title('Dashboard')] class extends Component
                 @endif
             </p>
 
-            <ul class="space-y-2">
-                @forelse ($this->deletionRuns as $run)
-                    <li>
-                        <a href="{{ route('deletions.show', $run) }}" wire:navigate
-                           class="block rounded border border-slate-800 p-3 hover:border-slate-600">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="font-medium text-slate-200">Run #{{ $run->id }}</span>
-                                <span class="text-xs uppercase tracking-wide text-slate-500">
-                                    {{ $run->status->value }}
-                                </span>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded bg-slate-950 p-2">
+                    <div class="text-lg font-semibold text-slate-100">{{ $this->deletionStats['runs'] }}</div>
+                    <div class="text-xs text-slate-500">runs</div>
+                </div>
+                <div class="rounded bg-slate-950 p-2">
+                    <div class="text-lg font-semibold text-emerald-400">{{ $this->deletionStats['deleted'] }}</div>
+                    <div class="text-xs text-slate-500">deleted</div>
+                </div>
+                <div class="rounded bg-slate-950 p-2">
+                    <div class="text-lg font-semibold text-sky-400">{{ $this->formatBytes($this->deletionStats['spaceFreed']) }}</div>
+                    <div class="text-xs text-slate-500">freed</div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <p class="mb-1 text-xs text-slate-500">Files deleted per day (last 14 days)</p>
+                @php $maxDelete = max(1, collect($this->deletionStats['chart'])->max('count')); @endphp
+                <div class="flex h-16 items-end gap-1">
+                    @foreach ($this->deletionStats['chart'] as $day)
+                        <div class="group relative flex-1">
+                            <div class="rounded-t bg-rose-700" style="height: {{ max(2, $day['count'] / $maxDelete * 64) }}px"></div>
+                            <div class="pointer-events-none absolute -top-6 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-200 group-hover:block">
+                                {{ Carbon::parse($day['date'])->format('M j') }}: {{ $day['count'] }}
                             </div>
-                            <div class="mt-1 text-xs text-slate-500">
-                                {{ $run->markers_found }} markers &middot; {{ $run->files_deleted }} files deleted &middot;
-                                {{ $run->started_at?->diffForHumans() }}
-                            </div>
-                        </a>
-                    </li>
-                @empty
-                    <li class="text-sm text-slate-500">No cleanup runs yet.</li>
-                @endforelse
-            </ul>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <a href="{{ route('jobs') }}" wire:navigate class="mt-4 block text-center text-xs text-slate-400 underline hover:text-slate-200">
+                View all cleanup runs &rarr;
+            </a>
         </section>
     </div>
 </div>

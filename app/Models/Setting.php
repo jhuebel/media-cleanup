@@ -24,6 +24,7 @@ class Setting extends Model
         'delete_marker_filename',
         'delete_schedule',
         'delete_extensions',
+        'log_retention_days',
     ];
 
     protected function casts(): array
@@ -35,6 +36,7 @@ class Setting extends Model
             'mkv_remux' => 'boolean',
             'convert_batch_size' => 'integer',
             'crf' => 'integer',
+            'log_retention_days' => 'integer',
         ];
     }
 
