@@ -11,14 +11,20 @@
 <body class="bg-slate-950 text-slate-200 min-h-screen antialiased">
     <div class="mx-auto max-w-5xl px-4 py-8">
         <header class="mb-8 flex items-center justify-between">
-            <a href="{{ route('dashboard') }}" wire:navigate class="text-lg font-semibold text-slate-100">
+            <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" wire:navigate class="text-lg font-semibold text-slate-100">
                 {{ config('app.name') }}
             </a>
-            <nav class="flex gap-4 text-sm">
-                <a href="{{ route('dashboard') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Dashboard</a>
-                <a href="{{ route('jobs') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Jobs</a>
-                <a href="{{ route('settings') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Settings</a>
-            </nav>
+            @auth
+                <nav class="flex items-center gap-4 text-sm">
+                    <a href="{{ route('dashboard') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Dashboard</a>
+                    <a href="{{ route('jobs') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Jobs</a>
+                    <a href="{{ route('settings') }}" wire:navigate class="text-slate-400 hover:text-slate-100">Settings</a>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="text-slate-400 hover:text-slate-100">Logout</button>
+                    </form>
+                </nav>
+            @endauth
         </header>
 
         <main>

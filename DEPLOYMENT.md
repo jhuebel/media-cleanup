@@ -60,6 +60,10 @@ Environment variables (see `.env.example` for the full annotated list):
 
 Publish container port 80 to whatever host port you want (e.g. `9880`).
 
+**5. Log in and change the default password.** The app seeds a single admin account
+(`admin` / `password`) on first migration — sign in and change the password immediately from
+**Settings → Admin Account**. The username `admin` is fixed and can't be changed.
+
 ## Every subsequent deploy
 
 ```bash

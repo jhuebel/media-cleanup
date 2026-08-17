@@ -2,6 +2,8 @@
 
 use App\Models\Setting;
 use App\Services\MediaScanner;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -40,6 +42,14 @@ new #[Title('Settings')] class extends Component
     public string $log_retention_days = '';
 
     public ?string $saved = null;
+
+    public string $current_password = '';
+
+    public string $new_password = '';
+
+    public string $new_password_confirmation = '';
+
+    public ?string $passwordUpdated = null;
 
     public function mount(): void
     {
@@ -126,6 +136,27 @@ new #[Title('Settings')] class extends Component
         ]);
 
         $this->saved = 'Settings saved.';
+    }
+
+    public function changePassword(): void
+    {
+        $this->passwordUpdated = null;
+
+        $this->validate([
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        if (! Hash::check($this->current_password, Auth::user()->password)) {
+            $this->addError('current_password', 'Current password is incorrect.');
+
+            return;
+        }
+
+        Auth::user()->update(['password' => $this->new_password]);
+
+        $this->reset(['current_password', 'new_password', 'new_password_confirmation']);
+        $this->passwordUpdated = 'Password updated.';
     }
 
     private function splitList(string $value, bool $strtolower = false): array
@@ -295,4 +326,44 @@ new #[Title('Settings')] class extends Component
             Save Settings
         </button>
     </form>
+
+    <section class="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <h2 class="mb-4 text-sm font-semibold text-slate-100">Admin Account</h2>
+
+        @if ($passwordUpdated)
+            <div class="mb-4 rounded border border-emerald-800 bg-emerald-950/50 px-4 py-2 text-sm text-emerald-300">
+                {{ $passwordUpdated }}
+            </div>
+        @endif
+
+        <form wire:submit="changePassword" class="grid gap-4 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+                <label class="mb-1 block text-xs text-slate-400">Username</label>
+                <p class="text-sm text-slate-300">admin <span class="text-slate-500">(cannot be changed)</span></p>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="mb-1 block text-xs text-slate-400">Current password</label>
+                <input type="password" wire:model="current_password" autocomplete="current-password"
+                       class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                @error('current_password') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="mb-1 block text-xs text-slate-400">New password</label>
+                <input type="password" wire:model="new_password" autocomplete="new-password"
+                       class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+                @error('new_password') <p class="mt-1 text-xs text-rose-400">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="mb-1 block text-xs text-slate-400">Confirm new password</label>
+                <input type="password" wire:model="new_password_confirmation" autocomplete="new-password"
+                       class="w-full rounded border-slate-700 bg-slate-950 text-sm text-slate-200">
+            </div>
+            <div class="sm:col-span-2">
+                <button type="submit" wire:loading.attr="disabled"
+                        class="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50">
+                    Update Password
+                </button>
+            </div>
+        </form>
+    </section>
 </div>

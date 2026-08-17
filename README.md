@@ -14,6 +14,10 @@ triggered manually. Run history lives on a dedicated Jobs page (retention config
 pruned automatically); the dashboard shows summary stats and trend graphs instead. No SMB credentials
 are needed: the app scans whatever is bind-mounted into the container at `/media`.
 
+The app sits behind simple single-admin authentication. Default login is **admin / password** —
+**change the password from Settings → Admin Account after first login.** The username is fixed and
+can't be changed.
+
 Everything (web, queue workers, scheduler) runs inside a single container via supervisord; ffmpeg is
 bundled in the image. See `docker/` for the nginx/php-fpm/supervisord config and `Dockerfile` for the
 build.

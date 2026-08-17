@@ -18,6 +18,8 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    // Deliberately excludes "username" - the admin username is fixed and
+    // must never be mass-assignable.
     protected $fillable = [
         'name',
         'email',
