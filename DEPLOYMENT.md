@@ -77,6 +77,16 @@ old image; you need Portainer to actually swap in the freshly built one). Make s
 image" is **off** for this stack, since `media-cleanup:local` only exists in the NAS's local image
 cache, not a registry — if Portainer tries to pull it, it'll fail or silently keep the stale container.
 
+**Once the container is recreated on the new image, clean up the old one:**
+```bash
+docker image prune -f
+```
+Every rebuild reuses the `media-cleanup:local` tag, so the previous image (and any stale
+intermediate layers from the multi-stage build) becomes untagged/"dangling" once the tag moves to
+the new image — Docker doesn't delete it automatically, which is why unused images pile up in
+Portainer over repeated deploys. `docker image prune -f` (no `-a`) only removes dangling images, so
+it won't touch this or any other stack's tagged/in-use images.
+
 ## Diagnosing a broken deploy
 
 Portainer's container logs show nginx access logs and supervisord startup — useful for confirming
