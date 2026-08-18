@@ -127,3 +127,10 @@ docker exec <container> ls -b resources/views/components/
   auto-generated `APP_KEY`, and logs all live under `storage/`. If that directory isn't a bind
   mount/volume, all of it (including the encryption key used for sessions/cookies) gets silently
   regenerated on every container recreate.
+- **npm is pinned to a minor version (`npm@12.0`) rather than `npm@latest`.** As of 12.0, npm started
+  blocking dependency install scripts by default (`esbuild`'s postinstall gets skipped) - harmless
+  today since esbuild still resolves its binary via `optionalDependencies`, but a floating `@latest`
+  could pick up a future npm release with a different breaking default on some later rebuild with no
+  corresponding code change to explain it. The `12.0` pin (rather than an exact `12.0.2`) still lets
+  bugfix releases land automatically on rebuild - it's npm minor/major bumps, not patches, that tend to
+  carry behavior changes. Bump the pin deliberately when there's a reason to.

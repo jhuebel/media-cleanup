@@ -6,6 +6,7 @@
 FROM node:22-alpine AS frontend
 
 WORKDIR /app
+RUN npm install -g npm@12.0
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY vite.config.js ./
