@@ -27,6 +27,10 @@ class ConvertVideoFile implements ShouldQueue
     public function handle(): void
     {
         if ($this->batch()?->cancelled()) {
+            ConversionFile::whereKey($this->conversionFileId)->update([
+                'status' => ConversionFileStatus::Cancelled,
+            ]);
+
             return;
         }
 

@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\DeletionRunStatus;
+use App\Models\Concerns\HasDuration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
 class DeletionRun extends Model
 {
+    use HasDuration;
+
     protected $fillable = [
         'status',
         'markers_found',

@@ -25,6 +25,11 @@ new #[Title('Conversion Run')] class extends Component
     {
         return $this->conversionRun->files()->orderBy('id')->get();
     }
+
+    public function cancel(): void
+    {
+        $this->conversionRun->cancel();
+    }
 };
 ?>
 
@@ -41,9 +46,21 @@ new #[Title('Conversion Run')] class extends Component
                     <span class="rounded bg-amber-950 px-1.5 py-0.5 text-xs font-normal uppercase text-amber-400">Dry Run</span>
                 @endif
             </h1>
-            <span class="text-xs uppercase tracking-wide text-slate-500">
-                {{ str_replace('_', ' ', $this->run->status->value) }}
-            </span>
+            <div class="flex items-center gap-3">
+                @if ($this->run->isCancellable())
+                    <button
+                        wire:click="cancel"
+                        wire:confirm="Cancel this run? Files already converting will finish, but no further files will be started."
+                        wire:loading.attr="disabled"
+                        class="rounded border border-rose-800 px-2.5 py-1 text-xs font-medium text-rose-400 hover:border-rose-600 hover:text-rose-300 disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                @endif
+                <span class="text-xs uppercase tracking-wide text-slate-500">
+                    {{ $this->run->isCancelling() ? 'Cancelling' : str_replace('_', ' ', $this->run->status->value) }}
+                </span>
+            </div>
         </div>
         @if ($this->run->is_dry_run)
             <p class="mt-2 text-xs text-amber-400">No files were modified, converted, or deleted during this run.</p>
@@ -66,14 +83,17 @@ new #[Title('Conversion Run')] class extends Component
             <table class="w-full text-left text-sm">
                 <thead class="bg-slate-800/50 text-xs uppercase text-slate-500">
                     <tr>
+                        <th class="px-3 py-2">#</th>
                         <th class="px-3 py-2">Path</th>
                         <th class="px-3 py-2">Status</th>
+                        <th class="px-3 py-2">Duration</th>
                         <th class="px-3 py-2">Error</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800">
                     @foreach ($this->files as $file)
                         <tr>
+                            <td class="px-3 py-2 text-xs text-slate-500">{{ $loop->iteration }} / {{ $this->files->count() }}</td>
                             <td class="px-3 py-2 font-mono text-xs text-slate-300">{{ $file->source_path }}</td>
                             <td class="px-3 py-2 text-xs">
                                 <span @class([
@@ -82,9 +102,11 @@ new #[Title('Conversion Run')] class extends Component
                                     'bg-sky-950 text-sky-400' => $file->status->value === 'would_convert',
                                     'bg-rose-950 text-rose-400' => $file->status->value === 'failed',
                                     'bg-amber-950 text-amber-400' => $file->status->value === 'skipped',
-                                    'bg-slate-800 text-slate-400' => ! in_array($file->status->value, ['done', 'failed', 'would_convert', 'skipped']),
+                                    'bg-slate-700 text-slate-300' => $file->status->value === 'cancelled',
+                                    'bg-slate-800 text-slate-400' => ! in_array($file->status->value, ['done', 'failed', 'would_convert', 'skipped', 'cancelled']),
                                 ])>{{ str_replace('_', ' ', $file->status->value) }}</span>
                             </td>
+                            <td class="px-3 py-2 text-xs text-slate-400">{{ $file->duration() }}</td>
                             <td class="px-3 py-2 text-xs text-rose-400">{{ $file->error_message }}</td>
                         </tr>
                     @endforeach

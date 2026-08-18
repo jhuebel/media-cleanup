@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enums\ConversionFileStatus;
+use App\Models\Concerns\HasDuration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ConversionFile extends Model
 {
+    use HasDuration;
+
     protected $fillable = [
         'conversion_run_id',
         'source_path',

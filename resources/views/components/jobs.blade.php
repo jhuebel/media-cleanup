@@ -56,6 +56,9 @@ new #[Title('Jobs')] class extends Component
                         </div>
                         <div class="mt-1 text-xs text-slate-500">
                             {{ $run->files_total }} files &middot; {{ $run->started_at?->diffForHumans() }}
+                            @if ($run->duration())
+                                &middot; ran for {{ $run->duration() }}
+                            @endif
                         </div>
                     </a>
                 </li>
@@ -82,6 +85,9 @@ new #[Title('Jobs')] class extends Component
                         <div class="mt-1 text-xs text-slate-500">
                             {{ $run->markers_found }} markers &middot; {{ $run->files_deleted }} files deleted &middot;
                             {{ $run->started_at?->diffForHumans() }}
+                            @if ($run->duration())
+                                &middot; ran for {{ $run->duration() }}
+                            @endif
                         </div>
                     </a>
                 </li>

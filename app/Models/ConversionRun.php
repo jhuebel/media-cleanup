@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ConversionRunStatus;
+use App\Models\Concerns\HasDuration;
 use Illuminate\Bus\Batch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class ConversionRun extends Model
 {
+    use HasDuration;
+
     protected $fillable = [
         'status',
         'is_dry_run',
@@ -48,6 +51,31 @@ class ConversionRun extends Model
         }
 
         return $this->batch()?->progress() ?? 100;
+    }
+
+    /**
+     * Whether this run can be cancelled: it must be actively running a
+     * batch, and not already in the process of cancelling.
+     */
+    public function isCancellable(): bool
+    {
+        return $this->status === ConversionRunStatus::Running
+            && ! ($this->batch()?->cancelled() ?? true);
+    }
+
+    public function isCancelling(): bool
+    {
+        return $this->status === ConversionRunStatus::Running
+            && ($this->batch()?->cancelled() ?? false);
+    }
+
+    /**
+     * Cancel the run's batch. Files already being converted are allowed to
+     * finish; only files that haven't started yet are skipped.
+     */
+    public function cancel(): void
+    {
+        $this->batch()?->cancel();
     }
 
     /**

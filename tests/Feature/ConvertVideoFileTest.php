@@ -8,6 +8,7 @@ use App\Jobs\ConvertVideoFile;
 use App\Models\ConversionFile;
 use App\Models\ConversionRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -143,5 +144,28 @@ class ConvertVideoFileTest extends TestCase
         $this->assertFileExists($source);
         $this->assertSame(ConversionFileStatus::Failed, $file->fresh()->status);
         $this->assertStringContainsString('already exists', $file->fresh()->error_message);
+    }
+
+    public function test_marks_the_file_cancelled_and_skips_conversion_when_the_batch_is_cancelled(): void
+    {
+        $source = "{$this->root}/Show A/episode1.mkv";
+        $this->makeSampleVideo($source, 'libx264', 'aac');
+
+        $run = ConversionRun::create(['status' => ConversionRunStatus::Running, 'started_at' => now()]);
+        $file = ConversionFile::create([
+            'conversion_run_id' => $run->id,
+            'source_path' => $source,
+            'extension' => 'mkv',
+            'status' => ConversionFileStatus::Pending,
+            'source_mtime' => now(),
+        ]);
+
+        $batch = Bus::batch([])->dispatch();
+        $batch->cancel();
+
+        (new ConvertVideoFile($file->id))->withBatchId($batch->id)->handle();
+
+        $this->assertFileExists($source);
+        $this->assertSame(ConversionFileStatus::Cancelled, $file->fresh()->status);
     }
 }

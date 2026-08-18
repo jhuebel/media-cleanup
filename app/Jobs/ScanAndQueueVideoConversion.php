@@ -100,9 +100,11 @@ class ScanAndQueueVideoConversion implements ShouldQueue
             ->allowFailures()
             ->finally(function (Batch $batch) use ($runId) {
                 ConversionRun::find($runId)?->update([
-                    'status' => $batch->failedJobs > 0
-                        ? ConversionRunStatus::CompletedWithErrors
-                        : ConversionRunStatus::Completed,
+                    'status' => match (true) {
+                        $batch->cancelled() => ConversionRunStatus::Cancelled,
+                        $batch->failedJobs > 0 => ConversionRunStatus::CompletedWithErrors,
+                        default => ConversionRunStatus::Completed,
+                    },
                     'finished_at' => now(),
                 ]);
             })

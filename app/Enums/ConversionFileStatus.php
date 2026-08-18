@@ -11,4 +11,5 @@ enum ConversionFileStatus: string
     case Failed = 'failed';
     case Skipped = 'skipped';
     case WouldConvert = 'would_convert';
+    case Cancelled = 'cancelled';
 }
