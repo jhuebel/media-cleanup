@@ -101,7 +101,7 @@ new #[Title('Conversion Run')] class extends Component
                 <tbody class="divide-y divide-slate-800">
                     @foreach ($this->files as $file)
                         <tr>
-                            <td class="px-3 py-2 text-xs text-slate-500">{{ $loop->iteration }} / {{ $this->files->count() }}</td>
+                            <td class="px-3 py-2 text-xs text-slate-500">{{ $loop->iteration }}</td>
                             <td class="px-3 py-2 font-mono text-xs text-slate-300">{{ $file->source_path }}</td>
                             <td class="px-3 py-2 text-xs">
                                 <span @class([
