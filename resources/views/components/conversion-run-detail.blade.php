@@ -26,6 +26,12 @@ new #[Title('Conversion Run')] class extends Component
         return $this->conversionRun->files()->orderBy('id')->get();
     }
 
+    #[Computed]
+    public function errorCount(): int
+    {
+        return $this->conversionRun->files()->whereNotNull('error_message')->count();
+    }
+
     public function cancel(): void
     {
         $this->conversionRun->cancel();
@@ -74,6 +80,9 @@ new #[Title('Conversion Run')] class extends Component
             @if ($this->run->finished_at)
                 &middot; finished {{ $this->run->finished_at->diffForHumans() }}
             @endif
+            @if ($this->errorCount > 0)
+                &middot; <a href="{{ route('conversions.errors', $this->run) }}" wire:navigate class="text-rose-400 underline hover:text-rose-300">{{ $this->errorCount }} error{{ $this->errorCount === 1 ? '' : 's' }} &rarr;</a>
+            @endif
         </div>
     </div>
 
@@ -87,7 +96,6 @@ new #[Title('Conversion Run')] class extends Component
                         <th class="px-3 py-2">Path</th>
                         <th class="px-3 py-2">Status</th>
                         <th class="px-3 py-2">Duration</th>
-                        <th class="px-3 py-2">Error</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800">
@@ -107,7 +115,6 @@ new #[Title('Conversion Run')] class extends Component
                                 ])>{{ str_replace('_', ' ', $file->status->value) }}</span>
                             </td>
                             <td class="px-3 py-2 text-xs text-slate-400">{{ $file->duration() }}</td>
-                            <td class="px-3 py-2 text-xs text-rose-400">{{ $file->error_message }}</td>
                         </tr>
                     @endforeach
                 </tbody>

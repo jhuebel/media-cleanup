@@ -18,5 +18,6 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/jobs', 'jobs')->name('jobs');
     Route::livewire('/settings', 'settings')->name('settings');
     Route::livewire('/conversions/{conversionRun}', 'conversion-run-detail')->name('conversions.show');
+    Route::livewire('/conversions/{conversionRun}/errors', 'conversion-run-errors')->name('conversions.errors');
     Route::livewire('/deletions/{deletionRun}', 'deletion-run-detail')->name('deletions.show');
 });

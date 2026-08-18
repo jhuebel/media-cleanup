@@ -38,9 +38,15 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+            // WAL lets readers/writers work concurrently instead of blocking
+            // each other, and busy_timeout makes a connection wait for a
+            // writer to finish instead of failing immediately with
+            // "database is locked" - both matter here since the queue
+            // workers, scheduler, and polling web requests (session writes)
+            // all share this one SQLite file.
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_JOURNAL_MODE', 'wal'),
+            'synchronous' => env('DB_SYNCHRONOUS', 'normal'),
             'transaction_mode' => 'DEFERRED',
         ],
 
