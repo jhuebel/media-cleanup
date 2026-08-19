@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ConversionRunStatus;
+use App\Models\Concerns\ClearsLog;
 use App\Models\Concerns\HasDuration;
 use Illuminate\Bus\Batch;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class ConversionRun extends Model
 {
-    use HasDuration;
+    use ClearsLog, HasDuration;
 
     protected $fillable = [
         'status',
@@ -22,6 +23,7 @@ class ConversionRun extends Model
         'started_at',
         'finished_at',
         'log',
+        'hidden_at',
     ];
 
     protected function casts(): array
@@ -31,6 +33,7 @@ class ConversionRun extends Model
             'is_dry_run' => 'boolean',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
+            'hidden_at' => 'datetime',
         ];
     }
 

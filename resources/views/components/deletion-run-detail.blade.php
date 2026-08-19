@@ -31,6 +31,11 @@ new #[Title('Cleanup Run')] class extends Component
     {
         return $this->deletionRun->deletedFiles()->orderBy('id')->get();
     }
+
+    public function deleteLog(): void
+    {
+        $this->deletionRun->clearLog();
+    }
 };
 ?>
 
@@ -98,7 +103,19 @@ new #[Title('Cleanup Run')] class extends Component
     </div>
 
     <div class="rounded-lg border border-slate-800 bg-slate-900 p-5">
-        <h2 class="mb-3 text-sm font-semibold text-slate-100">Log</h2>
+        <div class="mb-3 flex items-center justify-between gap-2">
+            <h2 class="text-sm font-semibold text-slate-100">Log</h2>
+            @if ($this->run->finished_at && $this->run->log)
+                <button
+                    wire:click="deleteLog"
+                    wire:confirm="Delete this run's log? It will also be removed from the Jobs list, though the run and its files stay in history."
+                    wire:loading.attr="disabled"
+                    class="rounded border border-rose-800 px-2.5 py-1 text-xs font-medium text-rose-400 hover:border-rose-600 hover:text-rose-300 disabled:opacity-50"
+                >
+                    Delete Log
+                </button>
+            @endif
+        </div>
         <pre class="max-h-96 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-3 text-xs text-slate-400">{{ $this->run->log }}</pre>
     </div>
 </div>

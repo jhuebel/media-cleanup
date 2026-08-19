@@ -15,12 +15,25 @@ new #[Title('Jobs')] class extends Component
         // Ordered by id rather than created_at: id is immune to clock/timezone
         // changes (e.g. a TZ config fix) shifting stored timestamps out of
         // true insertion order.
-        return ConversionRun::latest('id')->paginate(10, pageName: 'conversions');
+        return ConversionRun::visible()->latest('id')->paginate(10, pageName: 'conversions');
     }
 
     public function deletionRuns()
     {
-        return DeletionRun::latest('id')->paginate(10, pageName: 'deletions');
+        return DeletionRun::visible()->latest('id')->paginate(10, pageName: 'deletions');
+    }
+
+    public function dryRunCount(): int
+    {
+        // Not scoped to visible(): this counts everything pruneDryRuns()
+        // will actually delete, including already log-cleared dry runs.
+        return ConversionRun::where('is_dry_run', true)->count();
+    }
+
+    public function pruneDryRuns(): void
+    {
+        // Related conversion_files rows cascade-delete at the database level.
+        ConversionRun::where('is_dry_run', true)->delete();
     }
 
     public function with(): array
@@ -28,6 +41,7 @@ new #[Title('Jobs')] class extends Component
         return [
             'conversionRuns' => $this->conversionRuns(),
             'deletionRuns' => $this->deletionRuns(),
+            'dryRunCount' => $this->dryRunCount(),
         ];
     }
 };
@@ -37,7 +51,19 @@ new #[Title('Jobs')] class extends Component
     <h1 class="text-lg font-semibold text-slate-100">Jobs</h1>
 
     <section class="rounded-lg border border-slate-800 bg-slate-900 p-5">
-        <h2 class="mb-4 text-base font-semibold text-slate-100">Video Conversion Runs</h2>
+        <div class="mb-4 flex items-center justify-between gap-2">
+            <h2 class="text-base font-semibold text-slate-100">Video Conversion Runs</h2>
+            @if ($dryRunCount > 0)
+                <button
+                    wire:click="pruneDryRuns"
+                    wire:confirm="Delete all {{ $dryRunCount }} dry run entries? This cannot be undone."
+                    wire:loading.attr="disabled"
+                    class="rounded border border-amber-800 px-2.5 py-1 text-xs font-medium text-amber-400 hover:border-amber-600 hover:text-amber-300 disabled:opacity-50"
+                >
+                    Prune Dry Runs ({{ $dryRunCount }})
+                </button>
+            @endif
+        </div>
         <ul class="space-y-2">
             @forelse ($conversionRuns as $run)
                 <li>

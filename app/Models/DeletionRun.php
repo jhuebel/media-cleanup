@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DeletionRunStatus;
+use App\Models\Concerns\ClearsLog;
 use App\Models\Concerns\HasDuration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class DeletionRun extends Model
 {
-    use HasDuration;
+    use ClearsLog, HasDuration;
 
     protected $fillable = [
         'status',
@@ -19,6 +20,7 @@ class DeletionRun extends Model
         'started_at',
         'finished_at',
         'log',
+        'hidden_at',
     ];
 
     protected function casts(): array
@@ -27,6 +29,7 @@ class DeletionRun extends Model
             'status' => DeletionRunStatus::class,
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
+            'hidden_at' => 'datetime',
         ];
     }
 
