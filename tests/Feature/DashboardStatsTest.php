@@ -94,4 +94,19 @@ class DashboardStatsTest extends TestCase
             ->assertSee('Video Conversion Runs')
             ->assertSee('Expired Cleanup Runs');
     }
+
+    public function test_jobs_page_orders_runs_by_id_even_if_created_at_is_out_of_order(): void
+    {
+        $older = ConversionRun::create(['status' => ConversionRunStatus::Completed, 'started_at' => now()]);
+        $newer = ConversionRun::create(['status' => ConversionRunStatus::Completed, 'started_at' => now()]);
+
+        // Simulate a clock/timezone config change making an older row's
+        // created_at read later than a genuinely newer row's - as happened
+        // when the app's TZ handling was fixed mid-session.
+        $older->forceFill(['created_at' => now()->addHours(5)])->save();
+
+        $runs = Livewire::test('jobs')->viewData('conversionRuns');
+
+        $this->assertSame([$newer->id, $older->id], $runs->pluck('id')->all());
+    }
 }

@@ -12,12 +12,15 @@ new #[Title('Jobs')] class extends Component
 
     public function conversionRuns()
     {
-        return ConversionRun::latest()->paginate(10, pageName: 'conversions');
+        // Ordered by id rather than created_at: id is immune to clock/timezone
+        // changes (e.g. a TZ config fix) shifting stored timestamps out of
+        // true insertion order.
+        return ConversionRun::latest('id')->paginate(10, pageName: 'conversions');
     }
 
     public function deletionRuns()
     {
-        return DeletionRun::latest()->paginate(10, pageName: 'deletions');
+        return DeletionRun::latest('id')->paginate(10, pageName: 'deletions');
     }
 
     public function with(): array
