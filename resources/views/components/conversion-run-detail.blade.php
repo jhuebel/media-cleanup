@@ -105,7 +105,7 @@ new #[Title('Conversion Run')] class extends Component
                             <td class="px-3 py-2 font-mono text-xs text-slate-300">{{ $file->source_path }}</td>
                             <td class="px-3 py-2 text-xs">
                                 <span @class([
-                                    'rounded px-1.5 py-0.5 text-xs uppercase',
+                                    'whitespace-nowrap rounded px-1.5 py-0.5 text-xs uppercase',
                                     'bg-emerald-950 text-emerald-400' => $file->status->value === 'done',
                                     'bg-sky-950 text-sky-400' => $file->status->value === 'would_convert',
                                     'bg-rose-950 text-rose-400' => $file->status->value === 'failed',
