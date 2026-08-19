@@ -63,9 +63,15 @@ return [
     | will be used by the PHP date and date-time functions. The timezone
     | is set to "UTC" by default as it is suitable for most use cases.
     |
+    | This falls back to the container's TZ environment variable (see
+    | docker-entrypoint.sh, which uses TZ to set the OS clock) so that
+    | setting TZ alone is enough to correctly localize cron schedule
+    | evaluation and displayed timestamps, not just OS-level log output.
+    | Set APP_TIMEZONE explicitly if you need these to differ.
+    |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', env('TZ', 'UTC')),
 
     /*
     |--------------------------------------------------------------------------

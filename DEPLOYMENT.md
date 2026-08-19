@@ -56,7 +56,7 @@ Environment variables (see `.env.example` for the full annotated list):
 | `DB_QUEUE_RETRY_AFTER` | `86400` (ffmpeg jobs can run for hours; don't let a second worker re-pick a still-running job) |
 | `MEDIA_ROOT` | `/media` |
 | `PUID` / `PGID` | uid/gid that owns your media on the host — run `id <user>` on the NAS to find them |
-| `TZ` | your timezone, e.g. `America/Chicago` |
+| `TZ` | your timezone, e.g. `America/Chicago` — also localizes cron schedule evaluation and displayed timestamps, see gotchas |
 
 Publish container port 80 to whatever host port you want (e.g. `9880`).
 
@@ -127,6 +127,17 @@ docker exec <container> ls -b resources/views/components/
   calls `URL::forceRootUrl(config('app.url'))` specifically to make this deterministic regardless of
   what the proxy passes through; if asset/CSS loads ever break again after a proxy change, check this
   first.
+- **`config/app.php`'s `timezone` falls back to `TZ`, not just `env('TZ')` by coincidence.** Laravel's
+  own skeleton hardcodes `'timezone' => 'UTC'` - it does not read `TZ` at all, since `TZ` is normally
+  just an OS-level convention `docker-entrypoint.sh` uses to set `/etc/localtime`. Left as-is, setting
+  `TZ` in the environment would silently do nothing for Laravel's own clock: `now()`, every stored
+  timestamp, and cron schedule evaluation (`Setting::nextRunFor()`) would keep computing in UTC no
+  matter what `TZ` said, while the dashboard displayed the result with no timezone label - producing a
+  "why is my 2am schedule showing a completely different, confusing hour" symptom. We changed it to
+  `env('APP_TIMEZONE', env('TZ', 'UTC'))` so setting `TZ` alone (as already documented above) is
+  enough to fix both the OS clock and Laravel's clock together. If you ever see scheduled-run times
+  that don't match the hour you configured, check this first before assuming the cron expression is
+  wrong.
 - **Livewire single-file component filenames are plain ASCII on purpose.** `php artisan make:livewire`
   defaults to prefixing files with a ⚡ emoji (e.g. `⚡dashboard.blade.php`) as a visual convention —
   that's not a functional requirement. That 4-byte Unicode character was getting mangled somewhere
