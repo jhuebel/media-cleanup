@@ -1,15 +1,11 @@
 # Media Cleanup
 
-A Laravel web app that replaces two PowerShell scheduled-task scripts (see [scripts/](scripts/)):
+A Laravel web app that replaces a PowerShell scheduled-task script (see [scripts/](scripts/)):
 
-- **Video conversion** — scans a media library for `.mkv`/`.avi` files and converts them to `.mp4`
-  (mkv is remuxed via stream copy, avi is re-encoded) via `ffmpeg`, in a queued background batch with
-  live progress on the dashboard. A dry-run mode reports exactly what would happen (including flagging
-  files that would fail) without touching anything.
 - **Expired episode cleanup** — scans for `deleteafter.txt` marker files and deletes media in that
   folder older than the configured day count.
 
-Both run on their own configurable schedule (cron expressions, editable from Settings) and can also be
+Runs on its own configurable schedule (cron expression, editable from Settings) and can also be
 triggered manually. Run history lives on a dedicated Jobs page (retention configurable, old runs are
 pruned automatically); the dashboard shows summary stats and trend graphs instead. No SMB credentials
 are needed: the app scans whatever is bind-mounted into the container at `/media`.
@@ -18,9 +14,8 @@ The app sits behind simple single-admin authentication. Default login is **admin
 **change the password from Settings → Admin Account after first login.** The username is fixed and
 can't be changed.
 
-Everything (web, queue workers, scheduler) runs inside a single container via supervisord; ffmpeg is
-bundled in the image. See `docker/` for the nginx/php-fpm/supervisord config and `Dockerfile` for the
-build.
+Everything (web, queue workers, scheduler) runs inside a single container via supervisord. See
+`docker/` for the nginx/php-fpm/supervisord config and `Dockerfile` for the build.
 
 ## Deploying to a NAS via Portainer
 
@@ -52,6 +47,3 @@ whatever host/port you're actually serving on — see the `APP_URL` gotcha in
 ```bash
 php artisan test
 ```
-
-Conversion job tests shell out to a real `ffmpeg` against tiny generated sample videos rather than
-mocking the process — they're skipped automatically if `ffmpeg` isn't on `PATH`.

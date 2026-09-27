@@ -12,36 +12,28 @@ class ScheduledTasksTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_schedule_uses_the_configured_cron_expressions(): void
+    public function test_schedule_uses_the_configured_cron_expression(): void
     {
-        Setting::current()->update([
-            'convert_schedule' => '*/15 * * * *',
-            'delete_schedule' => '30 4 * * 0',
-        ]);
+        Setting::current()->update(['delete_schedule' => '30 4 * * 0']);
 
         $schedule = new Schedule;
         ScheduleConfigurator::configure($schedule);
 
         $commands = collect($schedule->events())->mapWithKeys(fn ($event) => [$event->command => $event->expression]);
 
-        $this->assertSame('*/15 * * * *', $commands->first(fn ($expr, $command) => str_contains($command, 'videos:convert')));
         $this->assertSame('30 4 * * 0', $commands->first(fn ($expr, $command) => str_contains($command, 'episodes:delete-expired')));
     }
 
-    public function test_blank_schedule_disables_that_task(): void
+    public function test_blank_schedule_disables_the_task(): void
     {
-        Setting::current()->update([
-            'convert_schedule' => null,
-            'delete_schedule' => '0 3 * * *',
-        ]);
+        Setting::current()->update(['delete_schedule' => null]);
 
         $schedule = new Schedule;
         ScheduleConfigurator::configure($schedule);
 
         $commands = collect($schedule->events())->map(fn ($event) => $event->command);
 
-        $this->assertFalse($commands->contains(fn ($command) => str_contains($command, 'videos:convert')));
-        $this->assertTrue($commands->contains(fn ($command) => str_contains($command, 'episodes:delete-expired')));
+        $this->assertFalse($commands->contains(fn ($command) => str_contains($command, 'episodes:delete-expired')));
     }
 
     public function test_next_run_for_returns_null_for_blank_or_invalid_expressions(): void

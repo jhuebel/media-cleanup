@@ -45,45 +45,6 @@ class MediaScanner
     }
 
     /**
-     * Files eligible for conversion: matching extensions, outside excluded
-     * paths, sorted by full path (mirrors the original script's behavior).
-     *
-     * @return SplFileInfo[]
-     */
-    public function findConvertibleFiles(Setting $settings): array
-    {
-        $extensions = $settings->convert_extensions ?: [];
-
-        if ($extensions === []) {
-            return [];
-        }
-
-        $root = $this->resolveScanRoot($settings);
-        $excludes = array_filter(array_map('strtolower', $settings->exclude_patterns ?: []));
-
-        $finder = (new Finder)
-            ->files()
-            ->in($root)
-            ->name(array_map(fn ($ext) => "*.{$ext}", $extensions))
-            ->sortByName();
-
-        $files = [];
-        foreach ($finder as $file) {
-            $path = strtolower($file->getPathname());
-
-            foreach ($excludes as $pattern) {
-                if (str_contains($path, $pattern)) {
-                    continue 2;
-                }
-            }
-
-            $files[] = $file;
-        }
-
-        return $files;
-    }
-
-    /**
      * Marker files (e.g. deleteafter.txt) found anywhere under the scan root.
      *
      * @return SplFileInfo[]

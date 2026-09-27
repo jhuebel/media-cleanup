@@ -53,7 +53,6 @@ Environment variables (see `.env.example` for the full annotated list):
 | `DB_CONNECTION` | `sqlite` |
 | `DB_DATABASE` | `/var/www/html/storage/app/database.sqlite` |
 | `SESSION_DRIVER` / `CACHE_STORE` / `QUEUE_CONNECTION` | `database` |
-| `DB_QUEUE_RETRY_AFTER` | `86400` (ffmpeg jobs can run for hours; don't let a second worker re-pick a still-running job) |
 | `MEDIA_ROOT` | `/media` |
 | `PUID` / `PGID` | uid/gid that owns your media on the host — run `id <user>` on the NAS to find them |
 | `TZ` | your timezone, e.g. `America/Chicago` — also localizes cron schedule evaluation and displayed timestamps, see gotchas |
@@ -90,8 +89,8 @@ it won't touch this or any other stack's tagged/in-use images.
 ## Diagnosing a broken deploy
 
 Portainer's container logs show nginx access logs and supervisord startup — useful for confirming
-migrations ran and all 5 processes (`nginx`, `php-fpm`, `queue-conversions`, `queue-default`,
-`scheduler`) came up, but **not** the actual PHP exception behind a 500. For that, use Portainer's
+migrations ran and all 4 processes (`nginx`, `php-fpm`, `queue-default`, `scheduler`) came up, but
+**not** the actual PHP exception behind a 500. For that, use Portainer's
 **Console** on the running container:
 ```bash
 tail -100 /var/www/html/storage/logs/laravel.log

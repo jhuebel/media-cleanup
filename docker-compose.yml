@@ -20,7 +20,6 @@ services:
       SESSION_DRIVER: database
       CACHE_STORE: database
       QUEUE_CONNECTION: database
-      DB_QUEUE_RETRY_AFTER: "86400"
       MEDIA_ROOT: /media
     volumes:
       - "${MEDIA_PATH}:/media"

@@ -8,10 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('conversion_runs', function (Blueprint $table) {
-            $table->timestamp('hidden_at')->nullable()->after('log');
-        });
-
         Schema::table('deletion_runs', function (Blueprint $table) {
             $table->timestamp('hidden_at')->nullable()->after('log');
         });
@@ -19,10 +15,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('conversion_runs', function (Blueprint $table) {
-            $table->dropColumn('hidden_at');
-        });
-
         Schema::table('deletion_runs', function (Blueprint $table) {
             $table->dropColumn('hidden_at');
         });

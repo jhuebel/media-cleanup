@@ -9,7 +9,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('settings', function (Blueprint $table) {
-            $table->string('convert_schedule')->nullable()->default('0 2 * * *')->after('convert_batch_size');
             $table->string('delete_schedule')->nullable()->default('0 3 * * *')->after('delete_marker_filename');
         });
     }
@@ -17,7 +16,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('settings', function (Blueprint $table) {
-            $table->dropColumn(['convert_schedule', 'delete_schedule']);
+            $table->dropColumn('delete_schedule');
         });
     }
 };

@@ -9,7 +9,7 @@ class PruneOldRunsCommand extends Command
 {
     protected $signature = 'logs:prune';
 
-    protected $description = 'Delete conversion/cleanup run history older than the configured retention period';
+    protected $description = 'Delete cleanup run history older than the configured retention period';
 
     public function handle(): void
     {

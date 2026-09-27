@@ -21,7 +21,6 @@ class MediaScannerTest extends TestCase
         $this->root = sys_get_temp_dir().'/media-scanner-test-'.uniqid();
         mkdir($this->root, 0777, true);
         mkdir("{$this->root}/Show A/Season 1", 0777, true);
-        mkdir("{$this->root}/incoming", 0777, true);
 
         config(['media.root' => $this->root]);
     }
@@ -31,39 +30,6 @@ class MediaScannerTest extends TestCase
         exec('rm -rf '.escapeshellarg($this->root));
 
         parent::tearDown();
-    }
-
-    public function test_finds_convertible_files_and_excludes_configured_patterns(): void
-    {
-        touch("{$this->root}/Show A/Season 1/episode1.mkv");
-        touch("{$this->root}/Show A/Season 1/episode2.avi");
-        touch("{$this->root}/Show A/Season 1/episode3.txt");
-        touch("{$this->root}/incoming/should-be-skipped.mkv");
-
-        $settings = Setting::current();
-        $scanner = new MediaScanner;
-
-        $files = $scanner->findConvertibleFiles($settings);
-
-        $this->assertCount(2, $files);
-        $this->assertEqualsCanonicalizing(
-            ['episode1.mkv', 'episode2.avi'],
-            array_map(fn ($f) => $f->getFilename(), $files),
-        );
-    }
-
-    public function test_convert_extensions_setting_controls_which_files_match(): void
-    {
-        touch("{$this->root}/Show A/Season 1/episode1.mkv");
-        touch("{$this->root}/Show A/Season 1/episode2.avi");
-
-        $settings = Setting::current();
-        $settings->update(['convert_extensions' => ['avi']]);
-
-        $files = (new MediaScanner)->findConvertibleFiles($settings->fresh());
-
-        $this->assertCount(1, $files);
-        $this->assertSame('episode2.avi', $files[0]->getFilename());
     }
 
     public function test_finds_marker_files_by_configured_name(): void
